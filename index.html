@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英語單字尋寶遊戲</title>
+    <!-- 引入 Tailwind CSS 以實現優美的 UI 設計 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Canvas Confetti 實現煙火特效 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', '微軟正黑體', sans-serif;
+            background-color: #f0fdf4;
+            background-image: radial-gradient(#bbf7d0 2px, transparent 2px);
+            background-size: 30px 30px;
+        }
+        
+        .word-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .word-card:active {
+            transform: scale(0.95);
+        }
+
+        .popped {
+            opacity: 0;
+            transform: scale(0.5);
+            pointer-events: none;
+        }
+
+        /* 獎盃動畫 */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .trophy-anim {
+            animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- 畫面 1：設定區 -->
+    <div id="setup-screen" class="bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full border-4 border-green-400 relative z-10 mt-8">
+        <h1 class="text-3xl font-bold text-center text-green-600 mb-2">✨ 單字尋寶設定 ✨</h1>
+        <p class="text-center text-gray-500 mb-6 text-lg">請輸入今天要練習的 8 個單字</p>
+        
+        <form id="word-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" required placeholder="單字 1 (例: apple)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            <input type="text" required placeholder="單字 2 (例: banana)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            <input type="text" required placeholder="單字 3 (例: cat)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            <input type="text" required placeholder="單字 4 (例: dog)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            <input type="text" required placeholder="單字 5 (例: elephant)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            <input type="text" required placeholder="單字 6 (例: frog)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            <input type="text" required placeholder="單字 7 (例: giraffe)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            <input type="text" required placeholder="單字 8 (例: horse)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
+            
+            <!-- 按鈕區塊：改為並排顯示 -->
+            <div class="col-span-1 md:col-span-2 mt-4 flex flex-col md:flex-row gap-4">
+                <button type="submit" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-2xl font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">
+                    🚀 開始遊戲
+                </button>
+                <button type="button" id="clear-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xl font-bold py-4 px-8 rounded-2xl shadow hover:shadow-md transition-all">
+                    🧹 清除單字
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 畫面 2：遊戲區 -->
+    <div id="game-screen" class="hidden w-full max-w-5xl">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+            <h2 class="text-2xl font-bold text-gray-700 bg-white px-6 py-2 rounded-full shadow-sm text-center">
+                🎯 任務：大聲唸出單字並找出隱藏的謎底！
+            </h2>
+            <button id="restart-btn" class="bg-white text-gray-500 hover:text-green-600 px-4 py-2 rounded-full shadow hover:shadow-md transition-all font-bold">
+                回設定畫面
+            </button>
+        </div>
+
+        <!-- 獎盃顯示區 (預設隱藏) -->
+        <div id="win-display" class="hidden fixed inset-0 flex flex-col items-center justify-center z-50 bg-white/80 backdrop-blur-sm">
+            <div class="text-9xl mb-4 trophy-anim">🏆</div>
+            <h1 class="text-5xl font-bold text-yellow-500 trophy-anim drop-shadow-md">恭喜找到謎底！</h1>
+            <p id="mystery-word-display" class="text-4xl text-green-600 mt-6 font-bold bg-white px-8 py-4 rounded-3xl border-4 border-green-400 shadow-xl"></p>
+            <button onclick="resetGame()" class="mt-8 bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold py-3 px-8 rounded-xl shadow-lg transition-all">
+                再來一局
+            </button>
+        </div>
+
+        <!-- 單字卡片網格 -->
+        <div id="word-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <!-- 卡片會由 JavaScript 動態生成 -->
+        </div>
+    </div>
+
+    <script>
+        // 遊戲狀態變數
+        let words = [];
+        let mysteryWord = '';
+
+        // DOM 元素
+        const setupScreen = document.getElementById('setup-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const wordForm = document.getElementById('word-form');
+        const inputs = document.querySelectorAll('.word-input');
+        const wordGrid = document.getElementById('word-grid');
+        const winDisplay = document.getElementById('win-display');
+        const mysteryWordDisplay = document.getElementById('mystery-word-display');
+        const restartBtn = document.getElementById('restart-btn');
+        const clearBtn = document.getElementById('clear-btn');
+
+        // 清除按鈕：清空所有單字
+        clearBtn.addEventListener('click', function() {
+            inputs.forEach(input => input.value = '');
+            inputs[0].focus(); // 將游標放在第一個輸入框
+        });
+
+        // 表單送出，開始遊戲
+        wordForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            words = [];
+            
+            // 收集 8 個單字
+            inputs.forEach(input => {
+                if (input.value.trim() !== '') {
+                    words.push(input.value.trim());
+                }
+            });
+
+            if (words.length === 8) {
+                startGame();
+            } else {
+                alert('請確認 8 個欄位都有輸入單字喔！');
+            }
+        });
+
+        // 返回設定畫面按鈕
+        restartBtn.addEventListener('click', resetGame);
+
+        function startGame() {
+            // 隨機選擇謎底
+            const randomIndex = Math.floor(Math.random() * words.length);
+            mysteryWord = words[randomIndex];
+
+            // 打亂單字順序 (讓每次出現的位置不同)
+            const shuffledWords = [...words].sort(() => Math.random() - 0.5);
+
+            // 清空並生成卡片
+            wordGrid.innerHTML = '';
+            shuffledWords.forEach(word => {
+                const card = document.createElement('div');
+                card.className = 'word-card bg-white h-32 md:h-48 rounded-3xl shadow-md border-b-8 border-green-200 flex items-center justify-center hover:bg-green-50';
+                
+                const wordText = document.createElement('span');
+                wordText.className = 'text-3xl md:text-5xl font-bold text-gray-700 select-none pointer-events-none text-center px-4 word-break break-words';
+                wordText.textContent = word;
+                
+                card.appendChild(wordText);
+
+                // 綁定點擊事件
+                card.addEventListener('click', () => handleWordClick(card, word));
+                
+                wordGrid.appendChild(card);
+            });
+
+            // 切換畫面
+            setupScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+        }
+
+        function handleWordClick(cardElement, clickedWord) {
+            // 防止重複點擊
+            if (cardElement.classList.contains('pointer-events-none')) return;
+            cardElement.classList.add('pointer-events-none');
+            
+            // 給予點擊的視覺回饋（變色、縮小）
+            cardElement.classList.remove('hover:bg-green-50');
+            cardElement.classList.add('bg-green-100', 'scale-95');
+
+            if (clickedWord === mysteryWord) {
+                // 點中謎底，觸發勝利！
+                triggerWinSequence();
+            } else {
+                // 不是謎底，將單字消除
+                cardElement.classList.add('popped');
+                
+                // 動畫結束後，將元素徹底從畫面上移除 (不會佔據空間，讓其他卡片自動遞補)
+                setTimeout(() => {
+                    cardElement.style.display = 'none';
+                }, 300);
+            }
+        }
+
+        function triggerWinSequence() {
+            // 顯示勝利畫面與獎盃
+            mysteryWordDisplay.textContent = `謎底是：${mysteryWord}`;
+            winDisplay.classList.remove('hidden');
+
+            // 觸發煙火特效 (多次發射營造盛大感)
+            var duration = 3 * 1000;
+            var animationEnd = Date.now() + duration;
+            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            var interval = setInterval(function() {
+                var timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                var particleCount = 50 * (timeLeft / duration);
+                // 從左右兩側發射煙火
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        function resetGame() {
+            // 隱藏遊戲區與勝利畫面
+            gameScreen.classList.add('hidden');
+            winDisplay.classList.add('hidden');
+            
+            // 顯示設定區，此時不再清空輸入框，保留上次的單字
+            setupScreen.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
