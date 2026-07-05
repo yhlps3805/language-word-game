@@ -1,238 +1,621 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英語單字尋寶遊戲</title>
-    <!-- 引入 Tailwind CSS 以實現優美的 UI 設計 -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Canvas Confetti 實現煙火特效 -->
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <style>
-        body {
-            font-family: 'Comic Sans MS', 'Chalkboard SE', '微軟正黑體', sans-serif;
-            background-color: #f0fdf4;
-            background-image: radial-gradient(#bbf7d0 2px, transparent 2px);
-            background-size: 30px 30px;
-        }
-        
-        .word-card {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>神秘單字翻牌遊戲</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5fbf7;
+      --ink: #1f2937;
+      --muted: #667085;
+      --line: #d9eadf;
+      --card: #ffffff;
+      --green: #21a366;
+      --green-dark: #16724a;
+      --mint: #e9f8ef;
+      --yellow: #f7c948;
+      --red: #ee6352;
+      --blue: #3b82f6;
+      --shadow: 0 18px 45px rgba(16, 76, 46, 0.12);
+      font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+    }
 
-        .word-card:active {
-            transform: scale(0.95);
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        .popped {
-            opacity: 0;
-            transform: scale(0.5);
-            pointer-events: none;
-        }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 20% 15%, rgba(123, 211, 150, 0.24), transparent 28rem),
+        radial-gradient(circle at 80% 5%, rgba(247, 201, 72, 0.18), transparent 22rem),
+        linear-gradient(135deg, #f8fff9 0%, var(--bg) 56%, #eefbf3 100%);
+    }
 
-        /* 獎盃動畫 */
-        @keyframes popIn {
-            0% { transform: scale(0); opacity: 0; }
-            80% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        
-        .trophy-anim {
-            animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-    </style>
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(1120px, calc(100% - 32px));
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 28px 0;
+      display: grid;
+      place-items: center;
+    }
+
+    .panel {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: clamp(20px, 4vw, 36px);
+    }
+
+    .setup {
+      max-width: 820px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--green-dark);
+      background: var(--mint);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      letter-spacing: 0;
+      line-height: 1.08;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 1.1rem;
+      margin-top: 12px;
+      line-height: 1.7;
+    }
+
+    .word-form {
+      margin-top: 28px;
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .word-input {
+      width: 100%;
+      min-height: 58px;
+      border: 2px solid #d6eadb;
+      border-radius: 14px;
+      padding: 0 16px;
+      background: #fbfffc;
+      color: var(--ink);
+      font-size: 1.08rem;
+      transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    .word-input:focus {
+      outline: 0;
+      border-color: var(--green);
+      box-shadow: 0 0 0 4px rgba(33, 163, 102, 0.14);
+      transform: translateY(-1px);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      min-height: 52px;
+      border-radius: 14px;
+      padding: 0 20px;
+      font-weight: 800;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      flex: 1 1 220px;
+      color: white;
+      background: linear-gradient(135deg, var(--green), var(--green-dark));
+      box-shadow: 0 12px 24px rgba(33, 163, 102, 0.22);
+    }
+
+    .btn-secondary {
+      color: #475467;
+      background: #eef4f0;
+    }
+
+    .hint {
+      min-height: 24px;
+      color: var(--red);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .game {
+      display: none;
+      width: 100%;
+    }
+
+    .game-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .status {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 13px;
+      border-radius: 999px;
+      background: white;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(12px, 2vw, 20px);
+    }
+
+    .word-card {
+      min-height: clamp(118px, 18vw, 178px);
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-bottom: 7px solid #bde8c9;
+      box-shadow: 0 12px 26px rgba(16, 76, 46, 0.1);
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      color: var(--ink);
+      font-size: clamp(1.45rem, 4vw, 2.8rem);
+      font-weight: 900;
+      text-align: center;
+      word-break: break-word;
+      line-height: 1.12;
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, opacity 220ms ease;
+    }
+
+    .word-card:hover,
+    .word-card:focus-visible {
+      outline: 0;
+      transform: translateY(-4px);
+      background: #f5fff8;
+      border-bottom-color: var(--green);
+    }
+
+    .word-card.removing {
+      opacity: 0;
+      transform: scale(0.7) rotate(-2deg);
+      pointer-events: none;
+    }
+
+    .word-card.correct {
+      color: #14532d;
+      background: #dcfce7;
+      border-color: var(--green);
+      transform: scale(1.03);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 24px;
+      background: rgba(245, 251, 247, 0.82);
+      backdrop-filter: blur(10px);
+      z-index: 10;
+    }
+
+    .result {
+      width: min(560px, 100%);
+      text-align: center;
+    }
+
+    .trophy {
+      width: 96px;
+      height: 96px;
+      margin: 0 auto 14px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: #7a4d00;
+      background: radial-gradient(circle at 40% 30%, #fff2a8, var(--yellow));
+      box-shadow: 0 14px 32px rgba(247, 201, 72, 0.35);
+      font-size: 3.4rem;
+      animation: pop 650ms cubic-bezier(0.2, 0.9, 0.2, 1.3) both;
+    }
+
+    .answer {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 14px 22px;
+      border-radius: 16px;
+      border: 2px solid #a7e8b8;
+      background: #f3fff6;
+      color: var(--green-dark);
+      font-size: clamp(1.8rem, 8vw, 3rem);
+      font-weight: 900;
+      word-break: break-word;
+    }
+
+    canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .show {
+      display: grid;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @keyframes pop {
+      0% {
+        opacity: 0;
+        transform: scale(0.45);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .input-grid,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .game-header {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+
+      .word-card {
+        min-height: 88px;
+      }
+    }
+  </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body>
+  <main class="app">
+    <section id="setupScreen" class="panel setup" aria-labelledby="setupTitle">
+      <div class="eyebrow">課堂小遊戲</div>
+      <h1 id="setupTitle">神秘單字翻牌遊戲</h1>
+      <p class="lead">輸入 8 個要練習的單字，系統會偷偷抽出一個神秘單字。學生輪流點卡片，找出答案就獲勝。</p>
 
-    <!-- 畫面 1：設定區 -->
-    <div id="setup-screen" class="bg-white rounded-3xl shadow-xl p-8 max-w-2xl w-full border-4 border-green-400 relative z-10 mt-8">
-        <h1 class="text-3xl font-bold text-center text-green-600 mb-2">✨ 單字尋寶設定 ✨</h1>
-        <p class="text-center text-gray-500 mb-6 text-lg">請輸入今天要練習的 8 個單字</p>
-        
-        <form id="word-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" required placeholder="單字 1 (例: apple)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            <input type="text" required placeholder="單字 2 (例: banana)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            <input type="text" required placeholder="單字 3 (例: cat)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            <input type="text" required placeholder="單字 4 (例: dog)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            <input type="text" required placeholder="單字 5 (例: elephant)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            <input type="text" required placeholder="單字 6 (例: frog)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            <input type="text" required placeholder="單字 7 (例: giraffe)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            <input type="text" required placeholder="單字 8 (例: horse)" class="word-input text-xl p-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-colors">
-            
-            <!-- 按鈕區塊：改為並排顯示 -->
-            <div class="col-span-1 md:col-span-2 mt-4 flex flex-col md:flex-row gap-4">
-                <button type="submit" class="flex-1 bg-green-500 hover:bg-green-600 text-white text-2xl font-bold py-4 px-8 rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all">
-                    🚀 開始遊戲
-                </button>
-                <button type="button" id="clear-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xl font-bold py-4 px-8 rounded-2xl shadow hover:shadow-md transition-all">
-                    🧹 清除單字
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- 畫面 2：遊戲區 -->
-    <div id="game-screen" class="hidden w-full max-w-5xl">
-        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-            <h2 class="text-2xl font-bold text-gray-700 bg-white px-6 py-2 rounded-full shadow-sm text-center">
-                🎯 任務：大聲唸出單字並找出隱藏的謎底！
-            </h2>
-            <button id="restart-btn" class="bg-white text-gray-500 hover:text-green-600 px-4 py-2 rounded-full shadow hover:shadow-md transition-all font-bold">
-                回設定畫面
-            </button>
+      <form id="wordForm" class="word-form">
+        <div class="input-grid" id="inputGrid"></div>
+        <div class="actions">
+          <button class="btn btn-primary" type="submit">開始遊戲</button>
+          <button class="btn btn-secondary" type="button" id="sampleBtn">填入範例</button>
+          <button class="btn btn-secondary" type="button" id="clearBtn">清空</button>
         </div>
+        <p id="formHint" class="hint" role="status" aria-live="polite"></p>
+      </form>
+    </section>
 
-        <!-- 獎盃顯示區 (預設隱藏) -->
-        <div id="win-display" class="hidden fixed inset-0 flex flex-col items-center justify-center z-50 bg-white/80 backdrop-blur-sm">
-            <div class="text-9xl mb-4 trophy-anim">🏆</div>
-            <h1 class="text-5xl font-bold text-yellow-500 trophy-anim drop-shadow-md">恭喜找到謎底！</h1>
-            <p id="mystery-word-display" class="text-4xl text-green-600 mt-6 font-bold bg-white px-8 py-4 rounded-3xl border-4 border-green-400 shadow-xl"></p>
-            <button onclick="resetGame()" class="mt-8 bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold py-3 px-8 rounded-xl shadow-lg transition-all">
-                再來一局
-            </button>
+    <section id="gameScreen" class="game" aria-labelledby="gameTitle">
+      <div class="game-header">
+        <div>
+          <h2 id="gameTitle">找出神秘單字</h2>
+          <div class="status">
+            <span class="pill" id="leftCount">剩下 8 張</span>
+            <span class="pill" id="tryCount">嘗試 0 次</span>
+            <span class="pill" id="timer">00:00</span>
+          </div>
         </div>
+        <button class="btn btn-secondary" type="button" id="restartBtn">回到設定</button>
+      </div>
+      <div id="wordGrid" class="grid"></div>
+    </section>
+  </main>
 
-        <!-- 單字卡片網格 -->
-        <div id="word-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            <!-- 卡片會由 JavaScript 動態生成 -->
-        </div>
-    </div>
+  <div id="winOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="winTitle">
+    <section class="panel result">
+      <div class="trophy" aria-hidden="true">★</div>
+      <h2 id="winTitle">答對了！</h2>
+      <p class="lead" id="winSummary">你找到了神秘單字。</p>
+      <div class="answer" id="answerText"></div>
+      <div class="actions">
+        <button class="btn btn-primary" type="button" id="playAgainBtn">再玩一次</button>
+        <button class="btn btn-secondary" type="button" id="editWordsBtn">換一組單字</button>
+      </div>
+    </section>
+  </div>
 
-    <script>
-        // 遊戲狀態變數
-        let words = [];
-        let mysteryWord = '';
+  <canvas id="confettiCanvas"></canvas>
 
-        // DOM 元素
-        const setupScreen = document.getElementById('setup-screen');
-        const gameScreen = document.getElementById('game-screen');
-        const wordForm = document.getElementById('word-form');
-        const inputs = document.querySelectorAll('.word-input');
-        const wordGrid = document.getElementById('word-grid');
-        const winDisplay = document.getElementById('win-display');
-        const mysteryWordDisplay = document.getElementById('mystery-word-display');
-        const restartBtn = document.getElementById('restart-btn');
-        const clearBtn = document.getElementById('clear-btn');
+  <script>
+    const inputGrid = document.querySelector("#inputGrid");
+    const wordForm = document.querySelector("#wordForm");
+    const formHint = document.querySelector("#formHint");
+    const setupScreen = document.querySelector("#setupScreen");
+    const gameScreen = document.querySelector("#gameScreen");
+    const wordGrid = document.querySelector("#wordGrid");
+    const leftCount = document.querySelector("#leftCount");
+    const tryCount = document.querySelector("#tryCount");
+    const timer = document.querySelector("#timer");
+    const winOverlay = document.querySelector("#winOverlay");
+    const answerText = document.querySelector("#answerText");
+    const winSummary = document.querySelector("#winSummary");
+    const sampleBtn = document.querySelector("#sampleBtn");
+    const clearBtn = document.querySelector("#clearBtn");
+    const restartBtn = document.querySelector("#restartBtn");
+    const playAgainBtn = document.querySelector("#playAgainBtn");
+    const editWordsBtn = document.querySelector("#editWordsBtn");
+    const confettiCanvas = document.querySelector("#confettiCanvas");
+    const confettiCtx = confettiCanvas.getContext("2d");
 
-        // 清除按鈕：清空所有單字
-        clearBtn.addEventListener('click', function() {
-            inputs.forEach(input => input.value = '');
-            inputs[0].focus(); // 將游標放在第一個輸入框
+    const sampleWords = ["apple", "banana", "cat", "dog", "elephant", "frog", "giraffe", "horse"];
+    let currentWords = [];
+    let mysteryWord = "";
+    let attempts = 0;
+    let remaining = 8;
+    let startedAt = 0;
+    let timerId = 0;
+    let confettiPieces = [];
+
+    for (let index = 0; index < 8; index += 1) {
+      const input = document.createElement("input");
+      input.className = "word-input";
+      input.type = "text";
+      input.required = true;
+      input.autocomplete = "off";
+      input.maxLength = 28;
+      input.placeholder = `單字 ${index + 1}`;
+      input.setAttribute("aria-label", `單字 ${index + 1}`);
+      inputGrid.appendChild(input);
+    }
+
+    const inputs = [...document.querySelectorAll(".word-input")];
+
+    wordForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const words = inputs.map((input) => input.value.trim()).filter(Boolean);
+      const uniqueWords = new Set(words.map((word) => word.toLowerCase()));
+
+      if (words.length !== 8) {
+        showHint("請填滿 8 個單字再開始。");
+        return;
+      }
+
+      if (uniqueWords.size !== 8) {
+        showHint("單字不要重複，這樣遊戲會更好玩。");
+        return;
+      }
+
+      currentWords = words;
+      localStorage.setItem("mystery-word-game-words", JSON.stringify(currentWords));
+      startGame();
+    });
+
+    sampleBtn.addEventListener("click", () => {
+      inputs.forEach((input, index) => {
+        input.value = sampleWords[index];
+      });
+      showHint("");
+      inputs[0].focus();
+    });
+
+    clearBtn.addEventListener("click", () => {
+      inputs.forEach((input) => {
+        input.value = "";
+      });
+      showHint("");
+      inputs[0].focus();
+    });
+
+    restartBtn.addEventListener("click", showSetup);
+    editWordsBtn.addEventListener("click", showSetup);
+    playAgainBtn.addEventListener("click", () => {
+      winOverlay.classList.remove("show");
+      startGame();
+    });
+
+    function showHint(message) {
+      formHint.textContent = message;
+    }
+
+    function startGame() {
+      attempts = 0;
+      remaining = currentWords.length;
+      mysteryWord = currentWords[Math.floor(Math.random() * currentWords.length)];
+      setupScreen.classList.add("hidden");
+      gameScreen.style.display = "block";
+      winOverlay.classList.remove("show");
+      renderCards(shuffle([...currentWords]));
+      updateStatus();
+      startTimer();
+    }
+
+    function renderCards(words) {
+      wordGrid.innerHTML = "";
+      words.forEach((word) => {
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "word-card";
+        card.textContent = word;
+        card.addEventListener("click", () => chooseWord(card, word));
+        wordGrid.appendChild(card);
+      });
+    }
+
+    function chooseWord(card, word) {
+      if (card.disabled) return;
+
+      attempts += 1;
+      card.disabled = true;
+
+      if (word === mysteryWord) {
+        card.classList.add("correct");
+        updateStatus();
+        endGame();
+        return;
+      }
+
+      remaining -= 1;
+      card.classList.add("removing");
+      updateStatus();
+      setTimeout(() => card.remove(), 220);
+    }
+
+    function updateStatus() {
+      leftCount.textContent = `剩下 ${remaining} 張`;
+      tryCount.textContent = `嘗試 ${attempts} 次`;
+    }
+
+    function startTimer() {
+      clearInterval(timerId);
+      startedAt = Date.now();
+      timer.textContent = "00:00";
+      timerId = setInterval(() => {
+        const seconds = Math.floor((Date.now() - startedAt) / 1000);
+        const minutesText = String(Math.floor(seconds / 60)).padStart(2, "0");
+        const secondsText = String(seconds % 60).padStart(2, "0");
+        timer.textContent = `${minutesText}:${secondsText}`;
+      }, 500);
+    }
+
+    function endGame() {
+      clearInterval(timerId);
+      answerText.textContent = mysteryWord;
+      winSummary.textContent = `用了 ${attempts} 次，時間 ${timer.textContent}。`;
+      setTimeout(() => {
+        winOverlay.classList.add("show");
+        launchConfetti();
+        playAgainBtn.focus();
+      }, 450);
+    }
+
+    function showSetup() {
+      clearInterval(timerId);
+      gameScreen.style.display = "none";
+      winOverlay.classList.remove("show");
+      setupScreen.classList.remove("hidden");
+      inputs[0].focus();
+    }
+
+    function shuffle(items) {
+      for (let index = items.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+      }
+      return items;
+    }
+
+    function resizeCanvas() {
+      confettiCanvas.width = window.innerWidth * window.devicePixelRatio;
+      confettiCanvas.height = window.innerHeight * window.devicePixelRatio;
+      confettiCtx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+    }
+
+    function launchConfetti() {
+      resizeCanvas();
+      const colors = ["#21a366", "#f7c948", "#3b82f6", "#ee6352", "#8b5cf6"];
+      confettiPieces = Array.from({ length: 130 }, () => ({
+        x: Math.random() * window.innerWidth,
+        y: -20 - Math.random() * window.innerHeight * 0.45,
+        size: 7 + Math.random() * 9,
+        speed: 2 + Math.random() * 4,
+        drift: -2 + Math.random() * 4,
+        rotation: Math.random() * 360,
+        spin: -8 + Math.random() * 16,
+        color: colors[Math.floor(Math.random() * colors.length)]
+      }));
+      requestAnimationFrame(drawConfetti);
+    }
+
+    function drawConfetti() {
+      confettiCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      confettiPieces.forEach((piece) => {
+        piece.y += piece.speed;
+        piece.x += piece.drift;
+        piece.rotation += piece.spin;
+        confettiCtx.save();
+        confettiCtx.translate(piece.x, piece.y);
+        confettiCtx.rotate((piece.rotation * Math.PI) / 180);
+        confettiCtx.fillStyle = piece.color;
+        confettiCtx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.55);
+        confettiCtx.restore();
+      });
+      confettiPieces = confettiPieces.filter((piece) => piece.y < window.innerHeight + 40);
+      if (confettiPieces.length > 0) {
+        requestAnimationFrame(drawConfetti);
+      } else {
+        confettiCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      }
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
+    try {
+      const savedWords = JSON.parse(localStorage.getItem("mystery-word-game-words") || "[]");
+      if (Array.isArray(savedWords) && savedWords.length === 8) {
+        inputs.forEach((input, index) => {
+          input.value = savedWords[index] || "";
         });
-
-        // 表單送出，開始遊戲
-        wordForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            words = [];
-            
-            // 收集 8 個單字
-            inputs.forEach(input => {
-                if (input.value.trim() !== '') {
-                    words.push(input.value.trim());
-                }
-            });
-
-            if (words.length === 8) {
-                startGame();
-            } else {
-                alert('請確認 8 個欄位都有輸入單字喔！');
-            }
-        });
-
-        // 返回設定畫面按鈕
-        restartBtn.addEventListener('click', resetGame);
-
-        function startGame() {
-            // 隨機選擇謎底
-            const randomIndex = Math.floor(Math.random() * words.length);
-            mysteryWord = words[randomIndex];
-
-            // 打亂單字順序 (讓每次出現的位置不同)
-            const shuffledWords = [...words].sort(() => Math.random() - 0.5);
-
-            // 清空並生成卡片
-            wordGrid.innerHTML = '';
-            shuffledWords.forEach(word => {
-                const card = document.createElement('div');
-                card.className = 'word-card bg-white h-32 md:h-48 rounded-3xl shadow-md border-b-8 border-green-200 flex items-center justify-center hover:bg-green-50';
-                
-                const wordText = document.createElement('span');
-                wordText.className = 'text-3xl md:text-5xl font-bold text-gray-700 select-none pointer-events-none text-center px-4 word-break break-words';
-                wordText.textContent = word;
-                
-                card.appendChild(wordText);
-
-                // 綁定點擊事件
-                card.addEventListener('click', () => handleWordClick(card, word));
-                
-                wordGrid.appendChild(card);
-            });
-
-            // 切換畫面
-            setupScreen.classList.add('hidden');
-            gameScreen.classList.remove('hidden');
-        }
-
-        function handleWordClick(cardElement, clickedWord) {
-            // 防止重複點擊
-            if (cardElement.classList.contains('pointer-events-none')) return;
-            cardElement.classList.add('pointer-events-none');
-            
-            // 給予點擊的視覺回饋（變色、縮小）
-            cardElement.classList.remove('hover:bg-green-50');
-            cardElement.classList.add('bg-green-100', 'scale-95');
-
-            if (clickedWord === mysteryWord) {
-                // 點中謎底，觸發勝利！
-                triggerWinSequence();
-            } else {
-                // 不是謎底，將單字消除
-                cardElement.classList.add('popped');
-                
-                // 動畫結束後，將元素徹底從畫面上移除 (不會佔據空間，讓其他卡片自動遞補)
-                setTimeout(() => {
-                    cardElement.style.display = 'none';
-                }, 300);
-            }
-        }
-
-        function triggerWinSequence() {
-            // 顯示勝利畫面與獎盃
-            mysteryWordDisplay.textContent = `謎底是：${mysteryWord}`;
-            winDisplay.classList.remove('hidden');
-
-            // 觸發煙火特效 (多次發射營造盛大感)
-            var duration = 3 * 1000;
-            var animationEnd = Date.now() + duration;
-            var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 100 };
-
-            function randomInRange(min, max) {
-                return Math.random() * (max - min) + min;
-            }
-
-            var interval = setInterval(function() {
-                var timeLeft = animationEnd - Date.now();
-
-                if (timeLeft <= 0) {
-                    return clearInterval(interval);
-                }
-
-                var particleCount = 50 * (timeLeft / duration);
-                // 從左右兩側發射煙火
-                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-            }, 250);
-        }
-
-        function resetGame() {
-            // 隱藏遊戲區與勝利畫面
-            gameScreen.classList.add('hidden');
-            winDisplay.classList.add('hidden');
-            
-            // 顯示設定區，此時不再清空輸入框，保留上次的單字
-            setupScreen.classList.remove('hidden');
-        }
-    </script>
+      }
+    } catch (error) {
+      localStorage.removeItem("mystery-word-game-words");
+    }
+  </script>
 </body>
 </html>
